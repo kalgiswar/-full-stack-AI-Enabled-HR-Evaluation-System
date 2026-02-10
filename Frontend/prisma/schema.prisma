@@ -1,0 +1,210 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+
+// ============================================
+// 📚 LEARNING: Database Schema Design
+// ============================================
+// This file defines your ENTIRE database structure
+// Each "model" = a table in PostgreSQL
+// Fields define columns and their types
+// Relations connect tables together (Foreign Keys)
+
+// ============================================
+// 👤 USER MODEL
+// ============================================
+// Stores user account information
+// This is the "parent" table - other tables reference it
+model User {
+  id        String   @id @default(uuid()) // Primary Key (unique ID)
+  email     String   @unique              // Unique constraint (no duplicate emails)
+  name      String
+  role      String   @default("candidate") // candidate | hr | admin
+  createdAt DateTime @default(now())      // Automatically set to current time
+  updatedAt DateTime @updatedAt           // Automatically updated on changes
+
+  // ============================================
+  // 🔗 RELATIONSHIPS (Foreign Keys)
+  // ============================================
+  // These create the "links" between tables
+  // "One User can have MANY interviews, resumes, etc."
+  
+  interviews         Interview[]        // One-to-Many: User → Interviews
+  resumeAnalyses     ResumeAnalysis[]   // One-to-Many: User → Resume Analyses
+  notifications      Notification[]     // One-to-Many: User → Notifications
+  assessmentResults  AssessmentResult[] // One-to-Many: User → Assessment Results
+
+  @@map("users") // Maps to "users" table in PostgreSQL
+}
+
+// ============================================
+// 💼 JOB MODEL
+// ============================================
+// Stores job postings created by HR
+model Job {
+  id             String   @id @default(uuid())
+  title          String
+  department     String
+  location       String
+  description    String   @db.Text // Text type for long content
+  criteria       String   @db.Text
+  status         String   @default("active") // active | closed
+  applicantsCount Int     @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  resumeAnalyses ResumeAnalysis[] // One Job → Many Applications
+
+  @@map("jobs")
+}
+
+// ============================================
+// 🎤 INTERVIEW MODEL
+// ============================================
+// Stores AI mock interview sessions
+model Interview {
+  id          String    @id @default(uuid())
+  userId      String    // Foreign Key to User
+  role        String?
+  transcript  Json?     // JSON type stores arrays/objects
+  duration    Int?      // Duration in seconds
+  finalized   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // ============================================
+  // 🔗 RELATION: Interview belongs to User
+  // ============================================
+  // "fields: [userId]" = column in THIS table
+  // "references: [id]" = column in PARENT table (users.id)
+  // "onDelete: Cascade" = if user deleted, delete their interviews too
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // One-to-One relation: Interview → Feedback
+  feedback Feedback?
+
+  @@index([userId]) // Index for faster queries by userId
+  @@map("interviews")
+}
+
+// ============================================
+// 📝 FEEDBACK MODEL
+// ============================================
+// Stores AI-generated feedback for interviews
+model Feedback {
+  id                  String   @id @default(uuid())
+  interviewId         String   @unique // One-to-One with Interview
+  userId              String
+  totalScore          Int
+  categoryScores      Json     // Stores object: { communication: 85, technical: 90, ... }
+  strengths           String[] // Array of strings
+  areasForImprovement String[]
+  finalAssessment     String   @db.Text
+  createdAt           DateTime @default(now())
+
+  // Relations
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@index([interviewId])
+  @@index([userId])
+  @@map("feedback")
+}
+
+// ============================================
+// 📄 RESUME ANALYSIS MODEL
+// ============================================
+// Stores AI analysis of uploaded resumes
+model ResumeAnalysis {
+  id                String   @id @default(uuid())
+  userId            String?  // Optional: can submit without account
+  jobId             String?
+  candidateName     String
+  fileName          String
+  matchScore        Int
+  category          String   // High Match | Potential | Reject
+  reasoning         String   @db.Text
+  skillsFound       String[] // Array of matched skills
+  missingSkills     String[]
+  experienceSummary String   @db.Text
+  jobDescription    String   @db.Text
+  createdAt         DateTime @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job?  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([jobId])
+  @@index([category])
+  @@map("resume_analyses")
+}
+
+// ============================================
+// 🔔 NOTIFICATION MODEL
+// ============================================
+// Stores notifications for candidates
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String
+  title      String
+  message    String   @db.Text
+  type       String   // success | rejection | info
+  analysisId String?  // Reference to resume_analyses
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@map("notifications")
+}
+
+// ============================================
+// 📊 ASSESSMENT RESULT MODEL
+// ============================================
+// Stores MCQ and coding assessment results
+model AssessmentResult {
+  id                 String   @id @default(uuid())
+  userId             String
+  assessmentId       String
+  technicalCode      String   @db.Text
+  psychometricScores Json     // { resilience: 85, leadership: 90, teamwork: 88 }
+  mcqAnswers         Json     // { questionId: answer }
+  textResponse       String   @db.Text
+  violations         String[] // Array of violation logs
+  createdAt          DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assessmentId])
+  @@map("assessment_results")
+}
+
+// ============================================
+// 📚 KEY LEARNING POINTS:
+// ============================================
+// 1. @id = Primary Key (unique identifier)
+// 2. @unique = No duplicates allowed (like email)
+// 3. @default() = Auto-fill value if not provided
+// 4. @relation() = Links tables (Foreign Key)
+// 5. @map() = Custom table name in database
+// 6. @@index() = Speed up queries on this column
+// 7. String vs String[] vs Json = Different data types
+// 8. onDelete: Cascade = Delete child records when parent deleted
+// 9. DateTime @updatedAt = Auto-update timestamp
