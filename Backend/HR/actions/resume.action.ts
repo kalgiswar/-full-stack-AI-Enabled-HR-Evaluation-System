@@ -30,16 +30,34 @@ const resumeSchema = z.object({
 });
 
 // Helper to extract text from PDF
+// Helper to extract text from PDF with Timeout
 async function extractTextFromPDF(file: File): Promise<string> {
   const buffer = Buffer.from(await file.arrayBuffer());
   const pdfParser = new (PDFParser as any)(null, 1);
 
   return new Promise((resolve, reject) => {
-    pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
-    pdfParser.on("pdfParser_dataReady", () => {
-      resolve(pdfParser.getRawTextContent());
+    // Timeout after 5 seconds
+    const timeout = setTimeout(() => {
+      reject(new Error("PDF Parsing Timed Out"));
+    }, 5000);
+
+    pdfParser.on("pdfParser_dataError", (errData: any) => {
+      clearTimeout(timeout);
+      reject(errData.parserError);
     });
-    pdfParser.parseBuffer(buffer);
+
+    pdfParser.on("pdfParser_dataReady", () => {
+      clearTimeout(timeout);
+      const text = pdfParser.getRawTextContent();
+      resolve(text);
+    });
+
+    try {
+      pdfParser.parseBuffer(buffer);
+    } catch (e) {
+      clearTimeout(timeout);
+      reject(e);
+    }
   });
 }
 

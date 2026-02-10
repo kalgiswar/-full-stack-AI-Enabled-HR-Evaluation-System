@@ -50,10 +50,10 @@ export async function signUp(params: SignUpParams) {
     });
 
     if (authError) {
-      console.error("[Auth] Supabase signup error:", authError);
+      console.error("[Auth] Supabase signup error:", JSON.stringify(authError, null, 2));
       
       // User-friendly error messages
-      if (authError.message.includes("already registered")) {
+      if (authError.message.includes("already registered") || authError.message.includes("User already exists")) {
         return {
           success: false,
           message: "This email is already in use",
@@ -62,7 +62,7 @@ export async function signUp(params: SignUpParams) {
       
       return {
         success: false,
-        error: authError.message || "Failed to create account",
+        error: `Supabase Error: ${authError.message || "Failed to create account"} (Status: ${authError.status || 'Unknown'})`,
       };
     }
 
@@ -84,8 +84,19 @@ export async function signUp(params: SignUpParams) {
     // await db.collection("users").doc(uid).set({ name, email })
     
     // AFTER (Prisma):
-    await prisma.user.create({
-      data: {
+    // AFTER (Prisma):
+    // Use upsert to handle cases where user might already exist (robustness)
+    await prisma.user.upsert({
+      where: {
+        id: authData.user.id,
+      },
+      update: {
+        // If user exists, just update last login or nothing
+        email, // Ensure email is synced
+        name,  // Ensure name is synced
+        // Do NOT overwrite role
+      },
+      create: {
         id: authData.user.id, // Use the same ID from Supabase auth
         email,
         name,
@@ -93,7 +104,7 @@ export async function signUp(params: SignUpParams) {
       },
     });
 
-    console.log("[Auth] User created successfully in PostgreSQL");
+    console.log("[Auth] User record ensured in PostgreSQL (upsert)");
 
     return {
       success: true,

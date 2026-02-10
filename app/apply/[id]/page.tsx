@@ -61,6 +61,12 @@ export default function ApplyJobPage() {
             return;
         }
 
+        // Validate file size (Max 4MB)
+        if (selectedFile.size > 4 * 1024 * 1024) {
+            toast.error("File too large. Max size is 4MB.");
+            return;
+        }
+
         setUploading(true);
         const formData = new FormData();
         formData.append("resume", selectedFile);
@@ -70,20 +76,28 @@ export default function ApplyJobPage() {
 
         try {
             toast.loading("Analyzing your resume...");
+            console.log("Submitting application for Job:", jobId);
+            
             const res = await analyzeResume(formData);
+            
             toast.dismiss();
 
             if (res.success) {
                 toast.success("Resume submitted! Proceeding to assessment...");
-                // Redirect to MCQ assessment instead of home
-                router.push(`/assessment/${jobId}`);
+                console.log("Redirecting to assessment...");
+                
+                // Use window.location.href for hard navigation to ensure state reset
+                // and reliable redirection to the new route
+                window.location.href = `/assessment/${jobId}`;
             } else {
                 toast.error(res.error || "Failed to submit application");
+                console.error("Application failed:", res.error);
+                setUploading(false); // Only stop loading on error
             }
         } catch (error) {
             toast.dismiss();
-            toast.error("An error occurred during application");
-        } finally {
+            console.error("Unhandled error during application:", error);
+            toast.error("An error occurred. Please try again.");
             setUploading(false);
         }
     };

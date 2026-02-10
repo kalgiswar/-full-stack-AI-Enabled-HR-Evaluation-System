@@ -76,9 +76,10 @@ export default function CreateJobPage() {
                                 <select 
                                     name="department"
                                     required
+                                    defaultValue=""
                                     className="bg-dark-300 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary-200 appearance-none cursor-pointer"
                                 >
-                                    <option value="" disabled selected>Select Department</option>
+                                    <option value="" disabled>Select Department</option>
                                     <option value="Engineering">Engineering</option>
                                     <option value="Design">Design</option>
                                     <option value="Product">Product</option>
