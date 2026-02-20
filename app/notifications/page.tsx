@@ -85,7 +85,7 @@ export default function NotificationsPage() {
     };
 
     return (
-        <ClientDashboardWrapper>
+        <ClientDashboardWrapper user={user} isLoading={loading}>
             <div className="max-w-4xl mx-auto flex flex-col gap-8 py-8 animate-fadeIn">
                 
                 {/* Header */}

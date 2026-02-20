@@ -87,7 +87,7 @@ async function Home() {
   const hasLiveJobs = liveJobs.length > 0;
 
   return (
-    <ClientDashboardWrapper>
+    <ClientDashboardWrapper user={user}>
       <section className="card-cta">
         <div className="flex flex-col gap-6 max-w-lg">
           <h2>AI-Enabled HR Evaluation System: From Resume to Offer</h2>

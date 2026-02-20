@@ -1,27 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@database/firebase/client";
+import React from "react";
 import DashboardAuth from "@/components/DashboardAuth";
 import { Loader2 } from "lucide-react";
 
-export default function ClientDashboardWrapper({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+interface ClientDashboardWrapperProps {
+  children: React.ReactNode;
+  user: any | null; // Accepting the user object (or null) from the server
+  isLoading?: boolean;
+}
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-      }
-    });
+export default function ClientDashboardWrapper({ 
+  children, 
+  user,
+  isLoading = false
+}: ClientDashboardWrapperProps) {
 
-    return () => unsubscribe();
-  }, []);
-
-  if (isAuthenticated === null) {
+  // If the server is still loading (unlikely for server components, but good for safety)
+  if (isLoading) {
     return (
       <div className="flex w-full h-[80vh] items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-primary-100" />
@@ -29,9 +25,11 @@ export default function ClientDashboardWrapper({ children }: { children: React.R
     );
   }
 
-  if (!isAuthenticated) {
+  // If no user is authenticated, show the auth screen
+  if (!user) {
     return <DashboardAuth />;
   }
 
+  // Otherwise, show the dashboard content
   return <>{children}</>;
 }
